@@ -1,0 +1,42 @@
+# 敏感信息：真实 Key 只允许存在本地 .env / 系统环境变量
+.env
+agent-core/.env
+*.env.local
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+**/.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# 运行期数据与向量库
+agent-core/data/
+agent-core/*.db
+agent-core/*.log
+*.log
+
+# 前端
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# 压测产物（体积大，不入库）
+jmeter/results/
+*.jtl
+
+# Allure 原始结果（报告按需生成）
+allure-results/
+allure-report/
+
+# IDE / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Postman 导出的环境文件可能含真实 Token，若需提交请先清空 token 字段
+# software test/postman/*.postman_environment.json

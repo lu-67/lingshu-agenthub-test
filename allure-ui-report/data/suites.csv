@@ -1,0 +1,8 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"在 NewTask 发目标 → 点""立即执行"" → 页面跳到 /chat/...。","3729","test_chat_send_and_receive","tests.ui","2026-11-14","passed","2026-11-14","","test_ui_playwright","",""
+"admin 账号登录 → 直接进 /admin 看管理端不崩。","4335","test_admin_login_and_view","tests.ui","2026-11-14","passed","2026-11-14","","test_ui_playwright","",""
+"正常账号登录 → 跳到 /new-task，有 textarea 和""立即执行""按钮。","1979","test_login_and_enter_new_task","tests.ui","2026-11-14","passed","2026-11-14","","test_ui_playwright","",""
+"个人设置页能打开。","2740","test_profile_page_renders","tests.ui","2026-11-14","passed","2026-11-14","","test_ui_playwright","",""
+"登录页能打开、有输入框和提交按钮。","2133","test_login_page_renders","tests.ui","2026-11-14","passed","2026-11-14","","test_ui_playwright","",""
+"普通用户直接访问 /admin → 前端路由守卫拦截，不在 /admin。","2812","test_admin_forbidden_for_normal_user","tests.ui","2026-11-14","passed","2026-11-14","","test_ui_playwright","",""
+"定时任务页能打开（不崩就行）。","2722","test_automations_page_renders","tests.ui","2026-11-14","passed","2026-11-14","","test_ui_playwright","",""

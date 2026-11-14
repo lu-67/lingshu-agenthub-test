@@ -1,0 +1,27 @@
+# 灵枢 AgentHub · v5.0 依赖
+# 安装：python -m pip install -r requirements.txt
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.9
+httpx>=0.27
+sqlalchemy>=2.0
+pymysql>=1.1
+
+# 鉴权
+passlib>=1.7
+bcrypt>=4.0
+
+# AI / RAG
+chromadb>=1.0
+
+# 其他
+python-dateutil>=2.9
+
+# 可选（未安装也能跑）：
+# redis>=5.0
+# python-jose>=3.3  （auth 只用标准库 jose 实现，不需要）
+
+# 测试相关
+pytest>=8.0
+requests>=2.32
+pytest-order>=1.2

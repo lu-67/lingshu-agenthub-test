@@ -1,0 +1,677 @@
+{
+  "info": {
+    "name": "AgentHub · API 接口测试",
+    "_postman_id": "agenthub-v5",
+    "description": "灵枢 AgentHub 接口测试集合，24 个接口，按功能分组。登录注册 4 个、智能体 3 个、会话 5 个、定时任务 4 个、交付物下载 1 个、管理后台 6 个（仅 admin有），每个请求带三层断言（状态码 + 业务码 + 关键字段），并自动提取环境变量传递给后续依赖请求。\n\n测试账号：tester / tester123（admin / admin123）\n运行顺序：从上往下依次跑完 24 个请求即可",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" }
+  ],
+  "item": [
+    {
+      "name": "0. 健康检查（不需要登录）",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "// 断言 1：状态码 200",
+                "pm.test('[健康检查] 状态码 200', function () {",
+                "  pm.response.to.have.status(200);",
+                "});",
+                "// 断言 2：必须有 status 字段且值为 ok",
+                "pm.test('[健康检查] status = ok', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.status).to.eql('ok');",
+                "});"
+              ]
+            }
+          }],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "1. 登录注册",
+      "item": [
+        {
+          "name": "GET /api/captcha",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/captcha",
+            "description": "注册前先调这个拿验证码 id 和图片。返回的 id 填到注册请求的 captchaId 字段。"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[验证码] 状态码 200', function () { pm.response.to.have.status(200); });",
+                "pm.test('[验证码] 返回 id 和 image', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json).to.have.property('id');",
+                "  pm.expect(json).to.have.property('image');",
+                "});",
+                "// 注册需要的 captchaId 就是后端返回的 id 字段",
+                "const json = pm.response.json();",
+                "pm.environment.set('captchaId', json.id);",
+                "// 验证码图片是 base64，展示给人眼看，不需要传给后端",
+                "console.log('captchaId =', json.id);"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/login（tester）",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"tester\",\n  \"password\": \"tester123\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[登录 tester] 状态码 200', function () { pm.response.to.have.status(200); });",
+                "pm.test('[登录 tester] 返回 token', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.token).to.be.a('string').and.not.empty;",
+                "});",
+                "pm.test('[登录 tester] username = tester', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.username).to.eql('tester');",
+                "});",
+                "const json = pm.response.json();",
+                "pm.environment.set('token', json.token);",
+                "console.log('token set:', json.token?.substring(0,20) + '...');"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/login（admin）",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[登录 admin] 状态码 200', function () { pm.response.to.have.status(200); });",
+                "pm.test('[登录 admin] 返回 token', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.token).to.be.a('string').and.not.empty;",
+                "});",
+                "const json = pm.response.json();",
+                "pm.environment.set('adminToken', json.token);",
+                "console.log('adminToken set');"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "POST /api/auth/register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser01\",\n  \"password\": \"123456\",\n  \"captchaId\": \"{{captchaId}}\",\n  \"captchaCode\": \"{{captchaCode}}\"\n}"
+            },
+            "description": "需要先调 GET /captcha 拿到验证码 id 和图片，验证码 5 分钟有效，一次性使用。"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[注册] 状态码 200 或 400（验证码过期）', function () {",
+                "  pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                "});"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "GET /api/auth/me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/auth/me"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[当前用户] 状态码 200', function () { pm.response.to.have.status(200); });",
+                "pm.test('[当前用户] 有 username 字段', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.username).to.eql('tester');",
+                "});"
+              ]
+            }
+          }],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. 智能体",
+      "item": [
+        {
+          "name": "GET /api/agents（列出）",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/agents"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[智能体列表] 状态码 200', function () { pm.response.to.have.status(200); });",
+                "pm.test('[智能体列表] 返回 agents 数组且至少 1 个', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.agents).to.be.an('array').and.to.have.length.of.at.least(1);",
+                "});",
+                "const json = pm.response.json();",
+                "if (json.agents && json.agents.length > 0) {",
+                "  pm.environment.set('agentId', json.agents[0].id);",
+                "  console.log('agentId =', json.agents[0].id);",
+                "}"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "POST /api/agents（新建）",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/agents",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"测试智能体\",\n  \"avatar\": \"🧪\",\n  \"description\": \"接口测试用的临时智能体\",\n  \"skillIds\": [\"market_research\", \"general\"],\n  \"model\": \"mock\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[新建智能体] 状态码 200', function () { pm.response.to.have.status(200); });",
+                "pm.test('[新建智能体] 返回 id', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json).to.have.property('id');",
+                "});"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "PUT /api/agents/{aid}（修改：停用）",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/agents/{{agentId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false\n}"
+            },
+            "description": "把第一个智能体停用。改回来传 { \"enabled\": true }。"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[修改智能体] 状态码 200', function () { pm.response.to.have.status(200); });"
+              ]
+            }
+          }],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. 会话（核心：发送→执行→回答）",
+      "item": [
+        {
+          "name": "GET /api/sessions（列出）",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/sessions?limit=10"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[会话列表] 状态码 200', function () { pm.response.to.have.status(200); });"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "POST /api/sessions（新建）",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/sessions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": {{agentId}},\n  \"title\": \"Postman 测试对话\"\n}"
+            }
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[新建会话] 状态码 200', function () { pm.response.to.have.status(200); });",
+                "pm.test('[新建会话] 返回 id', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json).to.have.property('id');",
+                "});",
+                "const json = pm.response.json();",
+                "pm.environment.set('sessionId', json.id);",
+                "console.log('sessionId =', json.id);"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "GET /api/sessions/{sid}（详情含消息）",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/sessions/{{sessionId}}"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[会话详情] 状态码 200', function () { pm.response.to.have.status(200); });",
+                "pm.test('[会话详情] 有 messages 数组', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.messages).to.be.an('array');",
+                "});"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "POST /api/sessions/{sid}/send（核心：目标→执行→回答）",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/sessions/{{sessionId}}/send",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"调研 2026 年国内宠物智能硬件市场，输出机会点与进入建议\"\n}"
+            },
+            "description": "最核心的接口：后端自动匹配技能、规划步骤、逐步执行、出自然语言回答。\n\n返回两种可能：\n- message=completed：直接完成，最后一条 assistant 消息就是回答\n- message=waiting_approval：遇到敏感步骤（目标里有\"发送\"、\"邮件\"等），要调 approve 继续"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[send 目标] 状态码 200', function () { pm.response.to.have.status(200); });",
+                "pm.test('[send 目标] message 是 completed 或 waiting_approval', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.message).to.be.oneOf(['completed', 'waiting_approval']);",
+                "});",
+                "pm.test('[send 目标] 有最终回答内容', function () {",
+                "  const json = pm.response.json();",
+                "  const lastMsg = (json.messages || []).filter(m => m.role === 'assistant').pop();",
+                "  pm.expect(lastMsg && lastMsg.content).to.be.a('string').and.not.empty;",
+                "});",
+                "// 从最后一条 assistant 消息里提取第一个交付物 id，给下载接口用",
+                "const json = pm.response.json();",
+                "const lastMsg = (json.messages || []).filter(m => m.role === 'assistant').pop();",
+                "const arts = lastMsg?.data?.artifacts || [];",
+                "if (arts.length > 0) {",
+                "  pm.environment.set('artifactId', arts[0].id);",
+                "  console.log('artifactId =', arts[0].id);",
+                "}"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "POST /api/sessions/{sid}/approve（授权敏感步骤）",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/sessions/{{sessionId}}/approve",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"内容已确认，允许发送\"\n}"
+            },
+            "description": "只有当 send 返回 message=waiting_approval 时才需要调这个。批准后继续执行剩余步骤，最终出完整回答。"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[授权] 状态码 200 或 400（没有待授权步骤时）', function () {",
+                "  pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                "});"
+              ]
+            }
+          }],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. 定时任务",
+      "item": [
+        {
+          "name": "GET /api/automations（列出）",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/automations"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[定时任务列表] 状态码 200', function () { pm.response.to.have.status(200); });"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "POST /api/automations（新建）",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/automations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": {{agentId}},\n  \"name\": \"每分钟测试\",\n  \"cronExpr\": \"* * * * *\",\n  \"goal\": \"调研宠物智能硬件市场的最新动态\",\n  \"enabled\": true\n}"
+            },
+            "description": "每分钟触发一次（方便测试）。创建后自动注册到调度器。\n\n常用 cron 预设：\n- 每分钟: * * * * *\n- 每小时整点: 0 * * * *\n- 每天早上9点: 0 9 * * *\n- 工作日9点: 0 9 * * 1-5"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[新建定时任务] 状态码 200', function () { pm.response.to.have.status(200); });",
+                "pm.test('[新建定时任务] 返回 id', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json).to.have.property('id');",
+                "});",
+                "const json = pm.response.json();",
+                "pm.environment.set('automationId', json.id);",
+                "console.log('automationId =', json.id);"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "PUT /api/automations/{aid}（停用）",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/automations/{{automationId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false\n}"
+            },
+            "description": "把定时器停掉（enabled=false），改回 true 再启用。"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[停用定时任务] 状态码 200', function () { pm.response.to.have.status(200); });"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "DELETE /api/automations/{aid}（删除）",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/automations/{{automationId}}",
+            "description": "测试完记得删掉，不然每分钟还在跑。"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[删除定时任务] 状态码 200 或 204', function () {",
+                "  pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+                "});"
+              ]
+            }
+          }],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. 交付物下载",
+      "item": [
+        {
+          "name": "GET /api/artifacts/{aid}/download",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/artifacts/{{artifactId}}/download",
+            "description": "下载 send 执行完自动生成的交付物（CSV 或 Markdown）。artifactId 从上一个 send 请求返回的 assistant 消息里自动提取。\n\n在 Postman 里点 Send 后，Response 下方有个 Save Response → Save to file。"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[交付物下载] 状态码 200', function () { pm.response.to.have.status(200); });"
+              ]
+            }
+          }],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. 管理后台（需要 admin 角色）",
+      "item": [
+        {
+          "name": "GET /api/admin/users（全量用户）",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/users"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[admin 用户列表] 状态码 200', function () { pm.response.to.have.status(200); });",
+                "pm.test('[admin 用户列表] 返回 users 数组', function () {",
+                "  const json = pm.response.json();",
+                "  pm.expect(json.users).to.be.an('array');",
+                "});",
+                "// 找 tester（username=tester）的 id 存起来，给后面的用户详情接口用",
+                "const json = pm.response.json();",
+                "const tester = (json.users || []).find(u => u.username === 'tester');",
+                "if (tester) {",
+                "  pm.environment.set('userId', tester.id);",
+                "  console.log('userId (tester) =', tester.id);",
+                "}"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "GET /api/admin/stats（平台总统计）",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/stats"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[admin 统计] 状态码 200', function () { pm.response.to.have.status(200); });"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "GET /api/admin/users/{uid}（用户详情）",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/users/{{userId}}",
+            "description": "查 tester 的完整画像：各模块计数 + 最近 10 条数据。userId 从上一个用户列表请求自动存。"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[admin 用户详情] 状态码 200', function () { pm.response.to.have.status(200); });"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "DELETE /api/admin/users/{uid}（删除用户）",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/users/999",
+            "description": "⚠️ 危险！删除用户 + 连带清理所有关联数据。这里用 999（不存在的用户）来测，避免误删。实际删除 tester 时把 uid 改成 2。"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[admin 删用户] 不存在的用户返回 404', function () {",
+                "  pm.response.to.have.status(404);",
+                "});"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "GET /api/admin/db/overview（数据库状态）",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/db/overview"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[admin 数据库状态] 状态码 200', function () { pm.response.to.have.status(200); });"
+              ]
+            }
+          }],
+          "response": []
+        },
+        {
+          "name": "GET /api/admin/scheduler/status（调度器状态）",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/scheduler/status"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('[admin 调度器状态] 状态码 200', function () { pm.response.to.have.status(200); });"
+              ]
+            }
+          }],
+          "response": []
+        }
+      ]
+    }
+  ]
+}

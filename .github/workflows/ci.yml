@@ -1,0 +1,135 @@
+name: AgentHub CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AGENT_MODE: mock
+      DB_FALLBACK_SQLITE: "1"
+      API_PORT: "8000"
+      BASE_URL: "http://127.0.0.1:8000"
+    steps:
+      # ============================================================
+      # 1. 准备代码 + Python 环境
+      # ============================================================
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r agent-core/requirements.txt
+          python -m pip install pytest requests allure-pytest
+
+      - name: Install Playwright + Chromium
+        run: |
+          python -m pip install playwright
+          python -m playwright install chromium
+
+      # ============================================================
+      # 2. 起后端（SQLite + mock 降级模式，不依赖 MySQL/Redis/DeepSeek）
+      # ============================================================
+      - name: Start backend (SQLite + mock)
+        run: |
+          cd agent-core
+          nohup python run_server.py > service.log 2>&1 &
+          echo "PID=$!"
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/health > /tmp/health.json 2>/dev/null; then
+              echo "✅ backend ready after ${i}x2 seconds"
+              cat /tmp/health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ backend failed to start"
+          cat service.log
+          exit 1
+
+      # ============================================================
+      # 3. 起前端（Vite dev server，供 Playwright UI 测试访问）
+      # ============================================================
+      - name: Install frontend deps + start dev server
+        run: |
+          cd frontend
+          npm ci --registry=https://registry.npmmirror.com
+          nohup npm run dev > /tmp/frontend.log 2>&1 &
+          echo "frontend PID=$!"
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:5173 > /dev/null 2>&1; then
+              echo "✅ frontend ready after ${i}x2 seconds"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "❌ frontend failed to start"
+          cat /tmp/frontend.log
+          exit 1
+
+      # ============================================================
+      # 4. 跑接口自动化（88 条 pytest + allure-pytest）
+      #    在仓库根跑！pytest.ini 的 testpaths 是相对路径 tests/api
+      # ============================================================
+      - name: Run API automation (88 cases)
+        run: python -m pytest tests/api -v --alluredir=allure-results -p no:cacheprovider || true
+
+      # ============================================================
+      # 5. 跑 UI 自动化（7 条 Playwright + allure-pytest）
+      #    加 || true：哪怕有 fail 也继续走后面的 Allure 报告和产物上传
+      # ============================================================
+      - name: Run UI automation (7 cases)
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ""
+        run: python -m pytest tests/ui -v --alluredir=allure-ui-results -p no:cacheprovider || true
+
+      # ============================================================
+      # 6. 合并 Allure 报告（接口 + UI 两份原材料 → 一份 HTML）
+      #    if: always()：哪怕前面的测试挂了也照样生成报告（raw JSON 已经写了）
+      # ============================================================
+      - name: Generate Allure report
+        if: always()
+        run: |
+          # 下载 Allure CLI（npm 全局装）—— 本地你装在 D:\software\，CI 里 Ubuntu 从零装
+          npm install -g allure-commandline --registry=https://registry.npmmirror.com
+          allure generate allure-results allure-ui-results -o allure-report --clean
+          echo "Allure report generated ✓"
+
+      # ============================================================
+      # 7. 上传产物（浏览器里能下载看 Allure HTML 和截图）
+      # ============================================================
+      - name: Upload Allure report + screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agenthub-allure-report
+          path: |
+            allure-report/
+            docs/screenshots/
+            agent-core/service.log
+            /tmp/frontend.log
+          if-no-files-found: warn
+
+      # ============================================================
+      # 8. 失败时 dump 后端日志（方便排查）
+      # ============================================================
+      - name: Dump backend log on failure
+        if: failure()
+        run: |
+          echo "=== backend service.log ==="
+          cat agent-core/service.log
+          echo "=== frontend log ==="
+          cat /tmp/frontend.log
