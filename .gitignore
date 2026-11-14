@@ -40,3 +40,6 @@ Thumbs.db
 
 # Postman 导出的环境文件可能含真实 Token，若需提交请先清空 token 字段
 # software test/postman/*.postman_environment.json
+
+# 本地临时目录（压测/构建临时产物）
+.tmp/

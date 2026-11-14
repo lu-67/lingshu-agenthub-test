@@ -193,9 +193,9 @@ nexus-agent/
 │   ├── 产品需求文档.md
 │   ├── 测试计划.md
 │   ├── 测试用例.md              # 136 条（接口 85 + 功能 51）
-│   ├── 缺陷报告.md              # 7 条真实缺陷（P0×1/P1×5/P2×1）
+│   ├── 缺陷报告.md              # 7 条真实缺陷（P0×2/P1×4/P2×1）
 │   ├── 缺陷清单_禅道导入.md
-│   ├── 测试报告.md              # 接口 88 + UI 7 + 性能 P95 7.9s
+│   ├── 测试报告.md              # 接口 88 + UI 7 + 性能 send P95≈2.8s
 │   └── screenshots/             # 14 张产品截图 + Playwright 自动截图
 ├── tests/
 │   ├── api/                     # Pytest 接口自动化（88 条用例）
@@ -212,7 +212,7 @@ nexus-agent/
 │   └── load/                    # JMeter 压测
 ├── software test/
 │   ├── postman/                 # Postman 集合（25 请求 + 环境变量）
-│   └──jmeter/                  # JMeter 压测计划（6 请求，P95 7.9s）
+│   └──jmeter/                  # JMeter 三类场景（读5/混合1/写4），17 sampler，send P95≈2.8s
 │    
 ├── knowledge/docs/              # RAG 种子文档（3 篇）
 ├── .github/workflows/
@@ -319,17 +319,7 @@ npm run dev
 | `GET /api/admin/db/overview` | 数据库状态：库名 / 表数 / 总行数 / 大小 / 每张表行数 |
 | `GET /api/admin/scheduler/status` | 调度器状态：运行中 / 已注册 jobs 列表 / 下次触发时间 |
 
-## 测试体系
 
-| 层次 | 工具 | 覆盖 | 入口 |
-|---|---|---|---|
-| 接口自动化 | Pytest + Requests | auth/agents/sessions/automations/artifacts/admin/security **88 条** | `pytest tests/api -v` |
-| UI 自动化 | Playwright + Chromium | 7 条：登录/新建任务/智能体市场/定时任务/个人设置/权限校验/管理后台 | `pytest tests/ui -v` |
-| 手工接口 | Postman | **25 请求**，含 admin / automations / 授权门禁 / 两套 token 权限校验 | 导入 `software test/postman/` |
-| 基准性能 | JMeter | 6 请求混合业务（login→agents→sessions→send→detail→automations），P95 send=7.9s | `jmeter -n -t "software test/jmeter/agenthub-plan.jmx"` |
-| CI 流水线 | GitHub Actions | 每次 push 自动：起后端+起前端→接口 88 条+UI 7 条→Allure 合并→上传 Artifacts | `.github/workflows/ci.yml` |
-| 实战教程 | **8 篇** Step-by-Step | 00 测试方案 / 01 Postman / 02 Pytest+Allure / 03 Playwright / 04 JMeter / 05 禅道+Jira+飞书 / 06 GitHub Actions / 07 面试 20 问 | `software test/教程/` |
-
-### 接口 88 全绿 + UI 7 全绿 + Postman 25 全绿 + JMeter 90 请求全绿
+### 接口 88 全绿 + UI 7 全绿 + Postman 25 全绿 + JMeter 三类场景（读 5 / 混合 1 / 写 4）压测：255 请求 HTTP 全 200，1 条 send 触发 3s 耗时断言
 
 
