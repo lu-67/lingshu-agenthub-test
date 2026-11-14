@@ -10,6 +10,7 @@ pymysql>=1.1
 # 鉴权
 passlib>=1.7
 bcrypt>=4.0
+Pillow>=10.0  # /api/captcha 画图形验证码；缺了会退化成 image: None
 
 # AI / RAG
 chromadb>=1.0

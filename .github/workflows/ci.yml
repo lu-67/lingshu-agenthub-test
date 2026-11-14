@@ -16,6 +16,7 @@ jobs:
       DB_FALLBACK_SQLITE: "1"
       API_PORT: "8000"
       BASE_URL: "http://127.0.0.1:8000"
+      SKIP_CAPTCHA: "1"
     steps:
       # ============================================================
       # 1. 准备代码 + Python 环境
@@ -83,18 +84,19 @@ jobs:
       # ============================================================
       # 4. 跑接口自动化（88 条 pytest + allure-pytest）
       #    在仓库根跑！pytest.ini 的 testpaths 是相对路径 tests/api
+      #    不加 || true：有 fail 就让 CI 变红，Allure 报告由 if: always() 照常生成
       # ============================================================
       - name: Run API automation (88 cases)
-        run: python -m pytest tests/api -v --alluredir=allure-results -p no:cacheprovider || true
+        run: python -m pytest tests/api -v --alluredir=allure-results -p no:cacheprovider
 
       # ============================================================
       # 5. 跑 UI 自动化（7 条 Playwright + allure-pytest）
-      #    加 || true：哪怕有 fail 也继续走后面的 Allure 报告和产物上传
+      #    不加 || true：有 fail 就让 CI 变红，报告和产物上传都是 if: always()
       # ============================================================
       - name: Run UI automation (7 cases)
         env:
           PLAYWRIGHT_BROWSERS_PATH: ""
-        run: python -m pytest tests/ui -v --alluredir=allure-ui-results -p no:cacheprovider || true
+        run: python -m pytest tests/ui -v --alluredir=allure-ui-results -p no:cacheprovider
 
       # ============================================================
       # 6. 合并 Allure 报告（接口 + UI 两份原材料 → 一份 HTML）
